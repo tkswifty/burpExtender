@@ -19,7 +19,7 @@ import random
 class BurpExtender(IBurpExtender, IHttpListener):
 
     def __init__(self):
-        self.payload = ['rememberMe']
+        self.payload = ['rememberMe','rmemberMe-tk']
         
 
     def registerExtenderCallbacks(self, callbacks):
@@ -45,6 +45,10 @@ class BurpExtender(IBurpExtender, IHttpListener):
                 request_bodys = resquest[analyzedRequest.getBodyOffset():].tostring()
                 request_host, request_Path = self.get_request_host(request_header)
                 request_contentType = analyzedRequest.getContentType()
+                if  len(filter(lambda x: 'Cookie' in x, request_header))>0:
+                	pass
+                else:
+                	request_header.append("Cookie:")
 
 
                 # 获取服务端的信息，主机地址，端口，协议
@@ -59,31 +63,32 @@ class BurpExtender(IBurpExtender, IHttpListener):
 
     # 发起请求并进行Shiro检测
     def sendPayload(self, request_header, host, port, protocol, request_bodys,messageInfo):
-            for i in xrange(0,len(request_header)):
-                    if request_header[i].startswith("Cookie:"):
-                        for shiroHeader in self.payload:
-                            request_header[i] = request_header[i]+";"+shiroHeader+"=tkswifty;"
-                            newRequest = self._helpers.buildHttpMessage(request_header,self._helpers.stringToBytes(request_bodys))
-                            if 's' in protocol:
-                                ishttps = True
-                            else:
-                                ishttps = False
-                            expression = r'.*(443).*'
-                            if re.match(expression, str(port)):
-                                ishttps = True
-                            rep = self._callbacks.makeHttpRequest(host, port, ishttps, newRequest)
+    		for shiroHeader in self.payload:
+    			for i in xrange(0,len(request_header)):
+    				if request_header[i].startswith("Cookie:"):
+    					request_header[i] = request_header[i]+";"+shiroHeader+"=shiroDiscover"
+    					newRequest = self._helpers.buildHttpMessage(request_header,self._helpers.stringToBytes(request_bodys))
+                        if 's' in protocol:
+                            ishttps = True
+                        else:
+                            ishttps = False
+                        expression = r'.*(443).*'
+                        if re.match(expression, str(port)):
+                           	ishttps = True
+                        rep = self._callbacks.makeHttpRequest(host, port, ishttps, newRequest)
 
-                            #新的请求响应包
-                            analyzedResponse = self._helpers.analyzeResponse(rep)
-                            rep_headers = analyzedResponse.getHeaders()
-                            expression = r'.*(deleteMe).*'
-                            for rpheader in rep_headers:
-                                if rpheader.startswith("Set-Cookie:") and re.match(expression, rpheader):
-                                    response_is_shiro = True
-                                    messageInfo.setHighlight('orange')
-                                    print "[+] Find Shiro application"
-                                    print "\t[-] host:" + str(host)
-                                    print "\t[-] port:" + str(port)
+                        #新的请求响应包
+                        analyzedResponse = self._helpers.analyzeResponse(rep)
+                        rep_headers = analyzedResponse.getHeaders()
+                        expression = r'.*(deleteMe).*'
+                        for rpheader in rep_headers:
+                            if rpheader.startswith("Set-Cookie:") and re.match(expression, rpheader):
+                                response_is_shiro = True
+                                messageInfo.setHighlight('orange')
+                                print "[+] Find Shiro application"
+                                print "\t[-] host:" + str(host)
+                                print "\t[-] port:" + str(port)
+
 
     # 获取请求的url
     def get_request_host(self, reqHeaders):
